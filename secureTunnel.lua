@@ -13,6 +13,11 @@ local discordWebhook = scm:load("discordWebhook")
 
 local pretty = require "cc.pretty"
 
+---@param name string
+---@param value any
+---@param condition function | nil
+---@param successColor number | nil
+---@param failColor number | nil
 local function printSetting(name, value, condition, successColor, failColor)
     condition = condition or function(val) return val end
     successColor = successColor or colors.green
@@ -117,14 +122,35 @@ function secureTunnel:showPrompt()
 end
 
 function secureTunnel:run()
-    -- self.blocksMoved = 0
-    -- -- The following would be useful as output on fail
-    -- self.blocksLeft = self.length
+    self.blocksMoved = 0
+    -- The following would be useful as output on fail
+    self.blocksLeft = self.length
+    self.errors = {}
 
-    -- while self.blocksLeft > 0 do
+    while self.blocksLeft > 0 do
+        -- Check fuel level
+        -- Refuel
+        if not self:checkFuel() then break end
+        -- Check torches
+        -- Check if enough torches or if it should be ignored
+        -- Check building blocks (from list?)
+        -- If everything is ok, continue with current position
+        -- Move forward and increase self.blocksMoved
 
-    --     self.blocksLeft = self.blocksLeft - self.blocksMoved
-    -- end
+        self.blocksLeft = self.blocksLeft - self.blocksMoved
+    end
+
+    if self.blocksLeft == 0 then
+        self:succeded()
+    else
+        self:failed()
+    end
+end
+
+---@return boolean
+function secureTunnel:checkFuel()
+    --@TODO check inventory for fuel and refuel if possible
+    return false
 end
 
 function secureTunnel:succeded()
