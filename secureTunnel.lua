@@ -13,6 +13,24 @@ local discordWebhook = scm:load("discordWebhook")
 
 local pretty = require "cc.pretty"
 
+local function printSetting(name, value, condition, successColor, failColor)
+    condition = condition or function(val) return val end
+    successColor = successColor or colors.green
+    failColor = failColor or colors.red
+    pretty.print(
+        pretty.group(
+            pretty.text(name, colors.yellow) ..
+            pretty.text(": ") ..
+            pretty.text(
+                tostring(value),
+                condition == nil and colors.yellow or
+                value and condition(value) and successColor or
+                failColor
+            )
+        )
+    )
+end
+
 ---@class secureTunnel
 local secureTunnel = {}
 
@@ -86,64 +104,17 @@ function secureTunnel:showPrompt()
         )
     end
 
-    pretty.print(
-        pretty.group(
-            pretty.text("width", colors.yellow) ..
-            pretty.text(": ") ..
-            pretty.text(
-                tostring(self.width),
-                self.width and
-                math.fmod(self.width, 2) ~= 0 and
-                colors.yellow or colors.red
-            )
-        )
-    )
+    printSetting("width", self.width, function(val) return math.fmod(val, 2) ~= 0 end, colors.yellow)
 
-    pretty.print(
-        pretty.group(
-            pretty.text("height", colors.yellow) ..
-            pretty.text(": ") ..
-            pretty.text(tostring(self.height), self.height and colors.yellow or colors.red)
-        )
-    )
+    printSetting("height", self.height, nil, colors.yellow)
 
-    pretty.print(
-        pretty.group(
-            pretty.text("length", colors.yellow) ..
-            pretty.text(": ") ..
-            pretty.text(tostring(self.length), self.length and colors.yellow or colors.red)
-        )
-    )
+    printSetting("length", self.length, nil, colors.yellow)
 
-    pretty.print(
-        pretty.group(
-            pretty.text("placeTorches", colors.yellow) ..
-            pretty.text(": ") ..
-            pretty.text(
-                tostring(self.settings["placeTorches"]),
-                self.settings["placeTorches"] and colors.green or colors.red
-            )
-        )
-    )
+    printSetting("placeTorches", self.settings["placeTorches"])
 
-    pretty.print(
-        pretty.group(
-            pretty.text("torchQuantity", colors.yellow) ..
-            pretty.text(": ") ..
-            pretty.text(tostring(self.settings["torchQuantity"]), colors.yellow)
-        )
-    )
+    printSetting("torchQuantity", self.settings["torchQuantity"], nil, colors.yellow)
 
-    pretty.print(
-        pretty.group(
-            pretty.text("discordWebhookEnabled", colors.yellow) ..
-            pretty.text(": ") ..
-            pretty.text(
-                tostring(self.settings["discordWebhookEnabled"]),
-                self.settings["discordWebhookEnabled"] and colors.green or colors.red
-            )
-        )
-    )
+    printSetting("discordWebhookEnabled", self.settings["discordWebhookEnabled"])
 end
 
 function secureTunnel:run()
