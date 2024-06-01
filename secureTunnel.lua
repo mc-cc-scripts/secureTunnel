@@ -105,15 +105,14 @@ function secureTunnel:showPrompt()
     end
 
     printSetting("width", self.width, function(val) return math.fmod(val, 2) ~= 0 end, colors.yellow)
-
     printSetting("height", self.height, nil, colors.yellow)
-
     printSetting("length", self.length, nil, colors.yellow)
-
     printSetting("placeTorches", self.settings["placeTorches"])
-
     printSetting("torchQuantity", self.settings["torchQuantity"], nil, colors.yellow)
-
+    printSetting("ignoreMissingTorches", self.settings["ignoreMissingTorches"])
+    printSetting("buildCeiling", self.settings["buildCeiling"])
+    printSetting("buildWalls", self.settings["buildWalls"])
+    printSetting("replaceBlocks", self.settings["replaceBlocks"])
     printSetting("discordWebhookEnabled", self.settings["discordWebhookEnabled"])
 end
 
