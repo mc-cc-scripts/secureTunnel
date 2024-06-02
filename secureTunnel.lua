@@ -62,7 +62,19 @@ secureTunnel["settings"] = {
 }
 
 secureTunnel["buildingBlocks"] = {
-    "minecraft:cobblestone"
+    "minecraft:cobblestone",
+    "minecraft:stone",
+    "minecraft:dirt",
+    "minecraft:planks",
+    "minecraft:log",
+    "minecraft:sandstone",
+    "minecraft:wool",
+    "minecraft:bricks",
+    "minecraft:mossy_cobblestone",
+    "minecraft:obsidian",
+    "minecraft:netherrack",
+    "minecraft:stonebrick",
+    "minecraft:end_stone"
 }
 
 function secureTunnel:init()
