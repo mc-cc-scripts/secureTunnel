@@ -255,10 +255,11 @@ function secureTunnel:run()
         tC:tryMove("tR")
 
         -- Move forward and increase self.blocksMoved
-        tC:tryMove("f") -- hope it works I guess? @TODO
         self.blocksMoved = self.blocksMoved + 1
-
         self.blocksLeft = self.blocksLeft - 1
+        if self.blocksLeft > 0 then
+            tC:tryMove("f")
+        end
     end
 
     if self.blocksLeft == 0 then
