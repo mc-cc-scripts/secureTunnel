@@ -1,7 +1,7 @@
 -- secureTunnel Builder
 -- Aims to build a tunnel that you can safely walk through without monsters spawning or gravel blocking your way.
--- For more information, check the README.md at <@TODO>
-local scm = require "scm"
+-- For more information, check the README.md at <https://github.com/mc-cc-scripts/secureTunnel-prog>
+local scm = require("./scm")
 
 local args = {...}
 
@@ -9,7 +9,8 @@ local args = {...}
 local discordWebhook = scm:load("discordWebhook")
 
 ---@class turtleController
--- local tC = scm:load("turtleController")
+local tC = scm:load("turtleController")
+tC.canBreakBlocks = true
 
 local pretty = require "cc.pretty"
 
@@ -40,7 +41,7 @@ end
 local secureTunnel = {}
 
 secureTunnel["settings"] = {
-    -- If torches should be placed (in the middle).
+    -- If torches should be placed (on the left wall).
     ["placeTorches"] = true,
     -- Amount of blocks between torches.
     ["torchQuantity"] = 8,
@@ -56,6 +57,12 @@ secureTunnel["settings"] = {
     ["discordWebhookEnabled"] = false,
     -- The URL for the discordWebhook.
     ["discordWebhookURL"] = "",
+    -- If the turtle should return home on success
+    ["returnHome"] = true
+}
+
+secureTunnel["buildingBlocks"] = {
+    "minecraft:cobblestone"
 }
 
 function secureTunnel:init()
@@ -89,16 +96,13 @@ function secureTunnel:showPrompt()
             pretty.text(">)", colors.lightGray)
         )
     )
-    pretty.print(
-        pretty.text("Note: <width> must be odd.", colors.lightGray)
-    )
 
-    self.width = args[1] or nil
-    self.height = args[2] or nil
-    self.length = args[3] or nil
+    self.width = tonumber(args[1]) or nil
+    self.height = tonumber(args[2]) or nil
+    self.length = tonumber(args[3]) or nil
     self.settings["placeTorches"] = args[4] or self.settings["placeTorches"]
 
-    if self.width and self.height and self.length and math.fmod(self.width, 2) ~= 0 then
+    if self.width and self.height and self.length then
         pretty.print(
             pretty.text("\nStarted with the following settings:", colors.green)
         )
@@ -109,7 +113,7 @@ function secureTunnel:showPrompt()
         )
     end
 
-    printSetting("width", self.width, function(val) return math.fmod(val, 2) ~= 0 end, colors.yellow)
+    printSetting("width", self.width, nil, colors.yellow)
     printSetting("height", self.height, nil, colors.yellow)
     printSetting("length", self.length, nil, colors.yellow)
     printSetting("placeTorches", self.settings["placeTorches"])
@@ -121,36 +125,142 @@ function secureTunnel:showPrompt()
     printSetting("discordWebhookEnabled", self.settings["discordWebhookEnabled"])
 end
 
+function secureTunnel:findBuildingBlock()
+    for i=1, #self.buildingBlocks, 1 do
+        local slot = tC:findItemInInventory(self.buildingBlocks[i])
+        if slot ~= nil then
+            turtle.select(slot)
+            return true
+        end
+    end
+    return false
+end
+
+function secureTunnel:place(position)
+    local digString = position == "down" and "digD" or
+                          position == "up" and "digU" or
+                          "dig"
+    local placeFunction = position == "down" and turtle.placeDown or
+                          position == "up" and turtle.placeUp or
+                          turtle.place
+
+    if self.settings["replaceBlocks"] then
+        tC:tryAction(digString)
+    end
+
+    local success, error = placeFunction()
+    if not success and error == "No items to place" then
+        if self:findBuildingBlock() then
+            placeFunction()
+            return true
+        else
+            table.insert(self.errors, "Not enough building blocks.")
+            return false
+        end
+    end
+
+    return true
+end
+
 function secureTunnel:run()
     self.blocksMoved = 0
     -- The following would be useful as output on fail
-    self.blocksLeft = self.length
+    self.blocksLeft = self.length + 1
     self.errors = {}
 
     while self.blocksLeft > 0 do
-        -- Check fuel level
-        -- Refuel
-        if not self:checkFuel() then break end
-        -- Check torches
-        -- Check if enough torches or if it should be ignored
-        -- Check building blocks (from list?)
-        -- If everything is ok, continue with current position
-        -- Move forward and increase self.blocksMoved
+        -- Check building blocks
+        local foundBuildingBlock = self:findBuildingBlock()
+        if not foundBuildingBlock then
+            table.insert(self.errors, "Not enough building blocks.")
+            return self:failed()
+        end
 
-        self.blocksLeft = self.blocksLeft - self.blocksMoved
+        -- If everything is ok, continue with current position
+        -- if not self:place("down") then return self:failed() end
+
+        
+        tC:tryMove("tL")
+
+        local facingRight = false
+
+        for y = 1, self.height, 1 do
+            if self.settings["buildWalls"] then
+                if not self:place() then return self:failed() end
+            end
+
+            tC:tryMove("tA")
+            facingRight = not facingRight
+
+            for x = 1, self.width, 1 do
+                if y == 1 then
+                    if not self:place("down") then return self:failed() end
+                end
+
+                if y == self.height and self.settings["buildCeiling"] then
+                    if not self:place("up") then return self:failed() end
+                end
+
+                if x < self.width then tC:tryMove("f") end
+            end
+
+            if self.settings["buildWalls"] then
+                if not self:place() then return self:failed() end
+            end
+
+            if y < self.height then tC:tryMove("u") end
+        end
+
+        if self.settings["buildWalls"] then
+            if not self:place() then return self:failed() end
+        end
+
+        for y = 1, self.height - 1, 1 do
+            tC:tryMove("d")
+        end
+
+        if facingRight then
+            tC:tryMove("tA")
+            for x = 1, self.width - 1, 1 do
+                tC:tryMove("f")
+            end
+        end
+
+        -- Check if torch should be placed
+        if math.fmod(self.blocksMoved, self.settings["torchQuantity"]) == 0 then
+            local slot = tC:findItemInInventory("minecraft:torch")
+            if slot then
+                local oldSlot = turtle.getSelectedSlot()
+                turtle.select(slot)
+                turtle.placeUp()
+                turtle.select(oldSlot)
+            elseif not self.settings["ignoreMissingTorches"] then
+                table.insert(self.errors, "Not enough torches.")
+                return self:failed()
+            end
+        end
+
+        tC:tryMove("tR")
+
+        -- Move forward and increase self.blocksMoved
+        tC:tryMove("f") -- hope it works I guess? @TODO
+        self.blocksMoved = self.blocksMoved + 1
+
+        self.blocksLeft = self.blocksLeft - 1
     end
 
     if self.blocksLeft == 0 then
-        self:succeded()
+        return self:succeded()
     else
-        self:failed()
+        return self:failed()
     end
 end
 
----@return boolean
-function secureTunnel:checkFuel()
-    --@TODO check inventory for fuel and refuel if possible
-    return false
+function secureTunnel:returnHome()
+    tC:tryMove("tA")
+    for i = 1, self.blocksMoved, 1 do
+        tC:tryMove("f")
+    end
 end
 
 function secureTunnel:succeded()
@@ -160,6 +270,10 @@ function secureTunnel:succeded()
     if self.settings["discordWebhookEnabled"] then
         discordWebhook:send("secureTunnelBuilder", "Tunnel completed.")
     end
+
+    if self.settings["returnHome"] then self:returnHome() end
+
+    return true
 end
 
 function secureTunnel:failed()
@@ -167,9 +281,14 @@ function secureTunnel:failed()
         pretty.text("Failed to build tunnel.", colors.red)
     )
     --@TODO: Print more information
+    -- self.errors
+    -- self.blocksLeft
+    -- maybe allow continuing aswell
     if self.settings["discordWebhookEnabled"] then
         discordWebhook:send("secureTunnelBuilder", "Failed to build tunnel. Please check on me.")
     end
+
+    return false
 end
 
 secureTunnel:init()
